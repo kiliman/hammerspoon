@@ -60,7 +60,7 @@ Perfect for:
 1. [Download Hammerspoon](https://www.hammerspoon.org/) (it's free!)
 2. Clone or download this configuration:
    ```bash
-   git clone https://github.com/kiliman/hammerspoon-config.git ~/.hammerspoon
+   git clone https://github.com/kiliman/hammerspoon.git ~/.hammerspoon
    ```
 3. Open Hammerspoon and reload the config
 4. You're done! 🎉
