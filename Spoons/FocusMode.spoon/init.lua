@@ -59,6 +59,22 @@ function obj:getCenterScreen()
     return screen
 end
 
+--- FocusMode:logWindowFrame(label, win)
+--- Method
+--- Helper to log window dimensions with a label
+---
+--- Parameters:
+---  * label - Description of what's being logged
+---  * win - The window to log
+---
+--- Returns:
+---  * None
+function obj:logWindowFrame(label, win)
+    local frame = win:frame()
+    local screen = win:screen()
+    self.logger.d(label .. ":", frame.w, "x", frame.h, "on screen", screen:name())
+end
+
 --- FocusMode:getScreenById(screenId)
 --- Method
 --- Finds a screen by its ID
@@ -121,10 +137,12 @@ end
 ---  * None
 function obj:restoreWindow(win, position)
     if position and position.screenId then
+        self.logger.d("Restoring to saved position:", position.w, "x", position.h)
         local screen = self:getScreenById(position.screenId)
         local frame = hs.geometry.new(position.x, position.y, position.w, position.h)
         win:moveToScreen(screen)
         win:setFrame(frame)
+        self:logWindowFrame("Window after restore", win)
         hs.alert.show("Restored: " .. win:application():name() .. " - " .. win:title())
     else
         self.logger.d("Focused window not recently stored, looking in slots")
@@ -164,6 +182,45 @@ function obj:findWindow(appName, title)
         end
     end
     return nil
+end
+
+--- FocusMode:fitAndCenterWindow(win, screen, originalFrame)
+--- Method
+--- Fits and centers a window on a screen, resizing only if necessary
+---
+--- Parameters:
+---  * win - The window to fit and center
+---  * screen - The screen to fit the window on
+---  * originalFrame - (optional) The original frame to use for dimensions (before moveToScreen)
+---
+--- Returns:
+---  * None
+function obj:fitAndCenterWindow(win, screen, originalFrame)
+    -- Use provided original frame, or get current frame if not provided
+    local winFrame = originalFrame or win:frame()
+    local screenFrame = screen:frame()
+
+    self.logger.d("Original window size:", winFrame.w, "x", winFrame.h)
+    self.logger.d("Screen frame:", screenFrame.w, "x", screenFrame.h)
+
+    -- Only resize if window doesn't fit
+    local newW = math.min(winFrame.w, screenFrame.w)
+    local newH = math.min(winFrame.h, screenFrame.h)
+
+    self.logger.d("New window size:", newW, "x", newH)
+
+    -- Center the window on the screen
+    local newX = screenFrame.x + (screenFrame.w - newW) / 2
+    local newY = screenFrame.y + (screenFrame.h - newH) / 2
+
+    self.logger.d("New position:", newX, ",", newY)
+
+    win:setFrame({
+        x = newX,
+        y = newY,
+        w = newW,
+        h = newH
+    })
 end
 
 --- FocusMode:saveWindowSlot(slot)
@@ -224,9 +281,10 @@ function obj:focusMode()
         self:restoreWindow(win, self.storedPositions[key])
         self.storedPositions[key] = nil
     else
-        -- Store current position
+        -- Store current position (BEFORE moveToScreen changes it)
         local currentScreen = win:screen()
         local currentFrame = win:frame()
+        self:logWindowFrame("Storing original window", win)
         self.storedPositions[key] = {
             screenId = currentScreen:id(),
             x = currentFrame.x,
@@ -235,9 +293,10 @@ function obj:focusMode()
             h = currentFrame.h
         }
 
-        -- Move to center and maximize
+        -- Move to center and fit (using original frame dimensions)
         win:moveToScreen(centerScreen)
-        win:maximize()
+        self:logWindowFrame("Window after moveToScreen", win)
+        self:fitAndCenterWindow(win, centerScreen, currentFrame)
         hs.alert.show("Moved to center: " .. key)
     end
 end
@@ -272,8 +331,10 @@ function obj:toggleWindowSlot(slot)
     if isOnCenter then
         self:restoreWindow(targetWin, self.slots[slot])
     else
+        -- Capture frame BEFORE moveToScreen changes it
+        local originalFrame = targetWin:frame()
         targetWin:moveToScreen(centerScreen)
-        targetWin:maximize()
+        self:fitAndCenterWindow(targetWin, centerScreen, originalFrame)
         targetWin:focus()
         hs.alert.show("Moved to center (slot " .. slot .. "): " .. appName .. " - " .. title)
     end
