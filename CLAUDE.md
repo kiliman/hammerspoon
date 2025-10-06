@@ -18,3 +18,13 @@ Advanced window management for multi-monitor setups.
 - `F13` - Toggle focused window to/from center screen
 - `Cmd+Alt+F13` then `0-9` - Save window position to slot
 - `Cmd+F13` then `0-9` - Toggle slot window to/from center
+
+### QuickWindowSwitcher
+Quick window switcher for the current application.
+
+**See:** `Spoons/QuickWindowSwitcher.spoon/CLAUDE.md` for full documentation and API details.
+
+**Quick start:**
+- `Cmd+Ctrl+W` - Show list of windows for current app
+- Press `1-9` or `0` to select a window instantly
+- Use arrow keys + Enter, or click to select

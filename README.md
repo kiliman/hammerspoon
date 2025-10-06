@@ -25,6 +25,19 @@ Have apps you always want in the same spot? Save up to 10 window positions and r
 
 **Example:** Save your terminal window to slot 1. Now whenever you need it, just press **Cmd+F13** → **1** and it jumps to your center screen. When you're done, press **F13** (not Cmd+F13!) to send it back to its saved position.
 
+### Quick Window Switcher - Find That Window Fast
+
+Got a bunch of Chrome windows or terminal sessions open? Press **Cmd+Ctrl+W** to see them all in a nice list. Press a number (1-9, 0), use arrow keys, or click to switch instantly.
+
+Perfect for:
+
+- 🌐 Jumping between multiple browser windows
+- 💻 Switching terminal sessions
+- 📝 Finding the right editor window
+- 💬 Locating that Slack workspace you need
+
+**Example:** You have 5 Chrome windows open. Press **Cmd+Ctrl+W**, see them numbered 1-5, press **3** to jump to window 3. Done!
+
 ## Getting Started
 
 ### Installation
@@ -54,6 +67,8 @@ Have apps you always want in the same spot? Save up to 10 window positions and r
 
 ## Keyboard Shortcuts
 
+### FocusMode
+
 | Shortcut                  | What It Does                                |
 | ------------------------- | ------------------------------------------- |
 | **F13**                   | Toggle current window to/from center screen |
@@ -63,6 +78,16 @@ Have apps you always want in the same spot? Save up to 10 window positions and r
 
 > [!NOTE]
 > **Note:** Once any window is on the center screen (whether moved with F13 or recalled with Cmd+F13), pressing **F13** will restore it to its last position or saved slot.
+
+### Quick Window Switcher
+
+| Shortcut          | What It Does                                     |
+| ----------------- | ------------------------------------------------ |
+| **Cmd+Ctrl+W**    | Show list of windows for current application    |
+| **1-9, 0**        | Select window instantly (in the list)            |
+| **↑/↓ + Enter**   | Navigate and select window (in the list)         |
+| **Click**         | Select window by clicking (in the list)          |
+| **Escape**        | Close the window list                            |
 
 > **Don't have an F13 key?** You can change the shortcuts - see the [configuration guide](CLAUDE.md).
 

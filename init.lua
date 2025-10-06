@@ -9,4 +9,13 @@ spoon.FocusMode:bindHotkeys({
 })
 spoon.FocusMode:start()
 
+-- Load and configure QuickWindowSwitcher Spoon
+hs.loadSpoon("QuickWindowSwitcher")
+
+spoon.QuickWindowSwitcher:init()
+spoon.QuickWindowSwitcher:bindHotkeys({
+    show = {{"cmd", "ctrl"}, "w"}
+})
+spoon.QuickWindowSwitcher:start()
+
 hs.alert.show("Hammerspoon config loaded!")
