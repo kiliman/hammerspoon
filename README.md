@@ -38,6 +38,21 @@ Perfect for:
 
 **Example:** You have 5 Chrome windows open. Press **Cmd+Ctrl+W**, see them numbered 1-5, press **3** to jump to window 3. Done!
 
+### Chrome Profile Switcher - Stop Fighting With Cmd+~
+
+Using multiple Chrome profiles (work, personal, client accounts)? Chrome's built-in `Cmd+~` cycles through **all** windows across **all** profiles, making it slow and annoying when you have many windows open.
+
+This gives each profile its own hotkey. Press it once to jump to that profile. Press it again to cycle through windows within the same profile only.
+
+Perfect for:
+
+- 🏢 Quickly jumping between work and personal Chrome profiles
+- 🔄 Cycling through multiple windows within the same profile
+- 🚀 Auto-launching Chrome with the right profile if no windows exist
+- 🎯 Direct access instead of hunting through all Chrome windows
+
+**Example:** You have your personal profile with 3 windows and work profile with 5 windows. Press **Cmd+Pad1** to jump to personal profile (window 1). Press **Cmd+Pad1** again to go to personal window 2. Press **Cmd+Pad2** to instantly jump to your work profile instead.
+
 ## Getting Started
 
 ### Installation
@@ -89,6 +104,13 @@ Perfect for:
 | **Click**         | Select window by clicking (in the list)          |
 | **Escape**        | Close the window list                            |
 
+### Chrome Profile Switcher
+
+| Shortcut       | What It Does                                       |
+| -------------- | -------------------------------------------------- |
+| **Cmd+Pad1**   | Switch to/cycle Michael (Kiliman) profile windows |
+| **Cmd+Pad2**   | Switch to/cycle Michael (beehiiv.com) profile windows |
+
 > **Don't have an F13 key?** You can change the shortcuts - see the [configuration guide](CLAUDE.md).
 
 ## Why Hammerspoon?
@@ -100,7 +122,10 @@ This configuration is built as a "Spoon" (Hammerspoon's term for a plugin), maki
 ## Need Help?
 
 - **Technical docs:** Check out [CLAUDE.md](CLAUDE.md) for the full technical reference
-- **Customization:** See the [FocusMode documentation](Spoons/FocusMode.spoon/CLAUDE.md) for all the options
+- **Customization:**
+  - [FocusMode documentation](Spoons/FocusMode.spoon/CLAUDE.md) for window management options
+  - [QuickWindowSwitcher documentation](Spoons/QuickWindowSwitcher.spoon/CLAUDE.md) for window switcher options
+  - [ChromeProfileSwitcher documentation](Spoons/ChromeProfileSwitcher.spoon/CLAUDE.md) for profile configuration
 - **Issues:** [Open an issue](../../issues) if something's not working right
 
 ## License

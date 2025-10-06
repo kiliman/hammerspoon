@@ -18,4 +18,11 @@ spoon.QuickWindowSwitcher:bindHotkeys({
 })
 spoon.QuickWindowSwitcher:start()
 
+-- Load and configure ChromeProfileSwitcher Spoon
+hs.loadSpoon("ChromeProfileSwitcher")
+
+spoon.ChromeProfileSwitcher:init()
+spoon.ChromeProfileSwitcher:addProfile("Michael (Kiliman)", "Default", {{"cmd"}, "pad1"})
+spoon.ChromeProfileSwitcher:addProfile("Michael  (beehiiv.com)", "Profile 1", {{"cmd"}, "pad2"})
+
 hs.alert.show("Hammerspoon config loaded!")
