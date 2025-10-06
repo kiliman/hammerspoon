@@ -8,14 +8,11 @@ local slotsJson = hs.settings.get("WindowPositionSlots")
 local slots = slotsJson and hs.json.decode(slotsJson) or {}
 log.d("slots", hs.inspect(slots))
 
--- Function to get the center screen dynamically (sorts by x-position, picks middle)
+-- Function to get the center screen (uses primary screen)
 local function getCenterScreen()
-    local screens = hs.screen.allScreens()
-    table.sort(screens, function(a, b)
-        return a:frame().x < b:frame().x
-    end)
-    -- Assuming 3 screens: index 1 = left, 2 = center, 3 = right
-    return screens[2] -- Adjust index if your setup has more/less screens or different order
+    local screen = hs.screen.primaryScreen()
+    log.d("Center screen ID:", screen:id(), "Name:", screen:name())
+    return screen
 end
 
 -- Function to get screen by ID
