@@ -103,10 +103,9 @@ function obj:switchToProfile(profileName, profileDir)
         for _, win in ipairs(windows) do
             local title = win:title()
             if title then
-                local matches = title:find(pattern) ~= nil
-                self.logger.i(string.format("  Window: '%s' | Matches: %s", title, tostring(matches)))
+                local matches, reason = self:titleMatchesProfile(title, profileName)
+                self.logger.i(string.format("  Window[%d]: '%s' | Matches: %s | Rule: %s", win:id() or -1, title, tostring(matches), reason))
 
-                -- Chrome window titles end with " - ProfileName"
                 if matches then
                     table.insert(matchingWindows, win)
                 end
@@ -137,7 +136,14 @@ function obj:switchToProfile(profileName, profileDir)
     -- Check if current frontmost window is Chrome with our target profile
     if frontmostApp and frontmostApp:bundleID() == "com.google.Chrome" and frontmostWindow then
         local frontTitle = frontmostWindow:title()
-        if frontTitle and frontTitle:find(" %- " .. self:escapePattern(profileName) .. "$") then
+        local frontMatches = false
+        local frontReason = "missing-title"
+        if frontTitle then
+            frontMatches, frontReason = self:titleMatchesProfile(frontTitle, profileName)
+            self.logger.i(string.format("Front window[%d] title='%s' | matches=%s | rule=%s", frontmostWindow:id() or -1, frontTitle, tostring(frontMatches), frontReason))
+        end
+
+        if frontTitle and frontMatches then
             -- Current window matches target profile, cycle to next
             self.logger.i("Current window matches target profile, cycling to next")
 
@@ -174,8 +180,109 @@ function obj:switchToProfile(profileName, profileDir)
     -- Focus the target window
     if targetWindow then
         self.logger.i(string.format("Focusing window: %s", targetWindow:title()))
+        local targetId = targetWindow:id() or -1
+        targetWindow:raise()
         targetWindow:focus()
+
+        -- Some scripted focus transitions don't always emit windowFocused reliably.
+        -- Trigger FlashOnFocus explicitly for the resulting focused window.
+        hs.timer.doAfter(0.08, function()
+            local focused = hs.window.focusedWindow()
+            local focusedId = focused and focused:id() or -1
+            self.logger.i(string.format("Post-focus check target=%d focused=%d", targetId, focusedId))
+
+            if spoon and spoon.FlashOnFocus then
+                if spoon.FlashOnFocus.flashWindow and focused and focused:id() == targetId then
+                    spoon.FlashOnFocus:flashWindow(focused)
+                    self.logger.i("Triggered FlashOnFocus:flashWindow")
+                elseif spoon.FlashOnFocus.flash then
+                    spoon.FlashOnFocus:flash()
+                    self.logger.i("Triggered FlashOnFocus:flash fallback")
+                end
+            end
+        end)
     end
+end
+
+--- ChromeProfileSwitcher:titleMatchesProfile(title, profileName)
+--- Method
+--- Determines whether a Chrome window title matches a profile name
+---
+--- Parameters:
+---  * title - Window title
+---  * profileName - Profile display name
+---
+--- Returns:
+---  * matches (boolean), reason (string)
+function obj:titleMatchesProfile(title, profileName)
+    if not title or not profileName then
+        return false, "missing-title-or-profile"
+    end
+
+    local escapedProfile = self:escapePattern(profileName)
+    local exactSuffixPattern = " %- " .. escapedProfile .. "$"
+    if title:find(exactSuffixPattern) then
+        return true, "exact-suffix-profile"
+    end
+
+    -- Some Chrome versions include app/product text after profile.
+    local beforeChromePattern = " %- " .. escapedProfile .. " %- Google Chrome$"
+    if title:find(beforeChromePattern) then
+        return true, "profile-before-google-chrome"
+    end
+
+    -- Fallback: split title by " - " and only consider trailing profile positions.
+    local segments = {}
+    local searchPos = 1
+    while true do
+        local delimStart, delimEnd = title:find(" - ", searchPos, true)
+        local segment
+        if delimStart then
+            segment = title:sub(searchPos, delimStart - 1)
+            searchPos = delimEnd + 1
+        else
+            segment = title:sub(searchPos)
+        end
+
+        local trimmed = segment:gsub("^%s+", ""):gsub("%s+$", "")
+        if trimmed ~= "" then
+            table.insert(segments, trimmed)
+        end
+
+        if not delimStart then
+            break
+        end
+    end
+
+    local normalizedProfile = self:normalizeProfileToken(profileName)
+
+    -- Common Chrome format: "... - Google Chrome - <Profile>"
+    local lastIdx = #segments
+    if lastIdx >= 1 and self:normalizeProfileToken(segments[lastIdx]) == normalizedProfile then
+        return true, "last-segment-profile-normalized"
+    end
+
+    -- Alternate format observed in some contexts: "... - <Profile> - Google Chrome"
+    if lastIdx >= 2 and
+        self:normalizeProfileToken(segments[lastIdx - 1]) == normalizedProfile and
+        self:normalizeProfileToken(segments[lastIdx]) == "google chrome" then
+        return true, "profile-before-google-chrome-normalized"
+    end
+
+    return false, "no-match"
+end
+
+--- ChromeProfileSwitcher:normalizeProfileToken(str)
+--- Method
+--- Normalizes profile/title tokens for robust matching
+---
+--- Parameters:
+---  * str - Token string to normalize
+---
+--- Returns:
+---  * Normalized string
+function obj:normalizeProfileToken(str)
+    return str:gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s+", " "):lower()
 end
 
 --- ChromeProfileSwitcher:launchChromeWithProfile(profileDir)
