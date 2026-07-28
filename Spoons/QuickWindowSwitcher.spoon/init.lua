@@ -5,7 +5,6 @@
 ---
 --- Download: N/A
 --- License: MIT
-
 local obj = {}
 obj.__index = obj
 
@@ -36,9 +35,6 @@ obj.hotkeyRefs = {}
 function obj:init()
     self.logger.d("Initializing QuickWindowSwitcher")
 
-    -- Store current choices for number key access
-    self.currentChoices = {}
-
     -- Create chooser
     self.chooser = hs.chooser.new(function(choice)
         if choice then
@@ -50,25 +46,6 @@ function obj:init()
     self.chooser:placeholderText("Select a window...")
     self.chooser:searchSubText(true)
     self.chooser:rows(10)
-
-    -- Add query changed callback for number key support
-    self.chooser:queryChangedCallback(function(query)
-        -- Check if query is a single digit (1-9, 0)
-        if query and #query == 1 then
-            local num = tonumber(query)
-            if num then
-                -- Convert 0 to 10
-                local index = (num == 0) and 10 or num
-
-                if self.currentChoices[index] then
-                    self:selectWindow(self.currentChoices[index])
-                    self.chooser:hide()
-                    -- Clear the query to prevent it from sticking
-                    self.chooser:query("")
-                end
-            end
-        end
-    end)
 
     return self
 end
@@ -158,17 +135,6 @@ function obj:show()
         -- Only one window, just focus it
         self:selectWindow(choices[1])
         return
-    end
-
-    -- Store choices for number key access and add numbers to display
-    self.currentChoices = {}
-    for i, choice in ipairs(choices) do
-        if i <= 10 then
-            -- Add number prefix (1-9, 0 for 10th)
-            local num = (i == 10) and 0 or i
-            choice.text = string.format("%d. %s", num, choice.text)
-            self.currentChoices[i] = choice
-        end
     end
 
     -- Set choices and show
