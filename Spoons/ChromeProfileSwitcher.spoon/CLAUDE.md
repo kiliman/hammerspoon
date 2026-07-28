@@ -94,9 +94,9 @@ The Spoon matches windows by looking for ` - ProfileName` at the end of the wind
 
 ```lua
 spoon.ChromeProfileSwitcher:init()
-    :addProfile("Personal", "Default", {{"cmd", "ctrl"}, "1"})
-    :addProfile("Work", "Profile 1", {{"cmd", "ctrl"}, "2"})
-    :addProfile("Client", "Profile 2", {{"cmd", "ctrl"}, "3"})
+    :addProfile("Personal", "Default", {{"cmd"}, "pad1"})
+    :addProfile("Work", "Profile 1", {{"cmd"}, "pad2"})
+    :addProfile("Client", "Profile 2", {{"cmd"}, "pad3"})
 ```
 
 ### Without Hotkeys (Programmatic Use)
