@@ -2,7 +2,7 @@
 ---
 --- Advanced window management for multi-monitor setups
 --- Provides Focus Mode to move windows to center/primary screen and restore positions
---- Supports persistent position slots for quick window recall
+--- Supports per-app saved positions for quick window recall
 ---
 --- Download: N/A
 --- License: MIT
@@ -12,25 +12,25 @@ obj.__index = obj
 
 -- Metadata
 obj.name = "FocusMode"
-obj.version = "1.0.0"
+obj.version = "2.0.0"
 obj.author = "Michael"
 obj.homepage = "N/A"
 obj.license = "MIT"
 
 obj.logger = hs.logger.new('FocusMode', 'debug')
 
--- Table to store temporary positions for the focused window toggle
+-- Table to store temporary positions for the focused window toggle (Focus Mode)
 obj.storedPositions = {}
 
--- Table to store persistent position slots (0-9)
-obj.slots = {}
+-- Table to store persistent per-app saved positions (keyed by app name)
+obj.appPositions = {}
 
 -- Hotkey references for cleanup
 obj.hotkeyRefs = {}
 
 --- FocusMode:init()
 --- Method
---- Initializes the Spoon, loading saved position slots
+--- Initializes the Spoon, loading saved app positions
 ---
 --- Parameters:
 ---  * None
@@ -38,21 +38,15 @@ obj.hotkeyRefs = {}
 --- Returns:
 ---  * The FocusMode object
 function obj:init()
-    local slotsJson = hs.settings.get("WindowPositionSlots")
-    self.slots = slotsJson and hs.json.decode(slotsJson) or {}
-    self.logger.d("Loaded slots:", hs.inspect(self.slots))
+    local json = hs.settings.get("FocusModeAppPositions")
+    self.appPositions = json and hs.json.decode(json) or {}
+    self.logger.d("Loaded app positions:", hs.inspect(self.appPositions))
     return self
 end
 
 --- FocusMode:getCenterScreen()
 --- Method
 --- Returns the center/primary screen
----
---- Parameters:
----  * None
----
---- Returns:
----  * The primary screen object
 function obj:getCenterScreen()
     local screen = hs.screen.primaryScreen()
     self.logger.d("Center screen ID:", screen:id(), "Name:", screen:name())
@@ -62,13 +56,6 @@ end
 --- FocusMode:logWindowFrame(label, win)
 --- Method
 --- Helper to log window dimensions with a label
----
---- Parameters:
----  * label - Description of what's being logged
----  * win - The window to log
----
---- Returns:
----  * None
 function obj:logWindowFrame(label, win)
     local frame = win:frame()
     local screen = win:screen()
@@ -77,143 +64,32 @@ end
 
 --- FocusMode:getScreenById(screenId)
 --- Method
---- Finds a screen by its ID
----
---- Parameters:
----  * screenId - The screen ID to find
----
---- Returns:
----  * The screen object, or primary screen if not found
+--- Finds a screen by its ID, with fallback to primary
 function obj:getScreenById(screenId)
     for _, screen in ipairs(hs.screen.allScreens()) do
         if screen:id() == screenId then
             return screen
         end
     end
-    self.logger.e("Screen ID " .. screenId .. " not found, using primary screen")
+    self.logger.e("Screen ID " .. tostring(screenId) .. " not found, using primary screen")
     return hs.screen.primaryScreen()
-end
-
---- FocusMode:findPosition(win)
---- Method
---- Searches slots for a saved position matching the window
----
---- Parameters:
----  * win - The window to find a position for
----
---- Returns:
----  * The saved position or nil if not found
-function obj:findPosition(win)
-    local appName = win:application():name()
-    local title = win:title()
-
-    -- Try exact match first (app name + title)
-    for i = 0, 9 do
-        local position = self.slots[i]
-        if position and position.appName == appName and position.title == title then
-            return position
-        end
-    end
-
-    -- Fallback to app name only
-    for i = 0, 9 do
-        local position = self.slots[i]
-        if position and position.appName == appName then
-            return position
-        end
-    end
-    return nil
-end
-
---- FocusMode:restoreWindow(win, position)
---- Method
---- Restores a window to its saved position
----
---- Parameters:
----  * win - The window to restore
----  * position - The position data to restore to
----
---- Returns:
----  * None
-function obj:restoreWindow(win, position)
-    if position and position.screenId then
-        self.logger.d("Restoring to saved position:", position.w, "x", position.h)
-        local screen = self:getScreenById(position.screenId)
-        local frame = hs.geometry.new(position.x, position.y, position.w, position.h)
-        win:moveToScreen(screen)
-        win:setFrame(frame)
-        self:logWindowFrame("Window after restore", win)
-        hs.alert.show("Restored: " .. win:application():name() .. " - " .. win:title())
-    else
-        self.logger.d("Focused window not recently stored, looking in slots")
-        local slotPosition = self:findPosition(win)
-        if slotPosition and slotPosition ~= position then
-            self:restoreWindow(win, slotPosition)
-        else
-            hs.alert.show("No stored position")
-        end
-    end
-end
-
---- FocusMode:findWindow(appName, title)
---- Method
---- Finds a window by app name and title
----
---- Parameters:
----  * appName - The application name
----  * title - The window title
----
---- Returns:
----  * The window object or nil if not found
-function obj:findWindow(appName, title)
-    local windows = hs.window.allWindows()
-
-    -- Try exact match first
-    for _, win in ipairs(windows) do
-        if win:application():name() == appName and win:title() == title then
-            return win
-        end
-    end
-
-    -- Fallback: Find by app name only
-    for _, win in ipairs(windows) do
-        if win:application():name() == appName then
-            return win
-        end
-    end
-    return nil
 end
 
 --- FocusMode:fitAndCenterWindow(win, screen, originalFrame)
 --- Method
 --- Fits and centers a window on a screen, resizing only if necessary
----
---- Parameters:
----  * win - The window to fit and center
----  * screen - The screen to fit the window on
----  * originalFrame - (optional) The original frame to use for dimensions (before moveToScreen)
----
---- Returns:
----  * None
 function obj:fitAndCenterWindow(win, screen, originalFrame)
-    -- Use provided original frame, or get current frame if not provided
     local winFrame = originalFrame or win:frame()
     local screenFrame = screen:frame()
 
     self.logger.d("Original window size:", winFrame.w, "x", winFrame.h)
     self.logger.d("Screen frame:", screenFrame.w, "x", screenFrame.h)
 
-    -- Only resize if window doesn't fit
     local newW = math.min(winFrame.w, screenFrame.w)
     local newH = math.min(winFrame.h, screenFrame.h)
 
-    self.logger.d("New window size:", newW, "x", newH)
-
-    -- Center the window on the screen
     local newX = screenFrame.x + (screenFrame.w - newW) / 2
     local newY = screenFrame.y + (screenFrame.h - newH) / 2
-
-    self.logger.d("New position:", newX, ",", newY)
 
     win:setFrame({
         x = newX,
@@ -223,47 +99,22 @@ function obj:fitAndCenterWindow(win, screen, originalFrame)
     })
 end
 
---- FocusMode:saveWindowSlot(slot)
+--- FocusMode:applyPosition(win, position)
 --- Method
---- Saves the focused window position to a slot
----
---- Parameters:
----  * slot - The slot number (0-9) to save to
----
---- Returns:
----  * None
-function obj:saveWindowSlot(slot)
-    local win = hs.window.focusedWindow()
-    if win then
-        local appName = win:application():name()
-        local title = win:title()
-        local frame = win:frame()
-
-        self.slots[slot] = {
-            screenId = win:screen():id(),
-            x = frame.x,
-            y = frame.y,
-            w = frame.w,
-            h = frame.h,
-            appName = appName,
-            title = title
-        }
-        hs.settings.set("WindowPositionSlots", hs.json.encode(self.slots))
-        hs.alert.show("Saved to slot " .. slot .. ": " .. appName .. " - " .. title)
-    else
-        hs.alert.show("No focused window to save")
-    end
+--- Moves a window to a saved position
+function obj:applyPosition(win, position)
+    local screen = self:getScreenById(position.screenId)
+    local frame = hs.geometry.new(position.x, position.y, position.w, position.h)
+    win:moveToScreen(screen)
+    win:setFrame(frame)
+    self:logWindowFrame("Window after applyPosition", win)
 end
 
 --- FocusMode:focusMode()
 --- Method
---- Toggles the focused window to/from center screen
----
---- Parameters:
----  * None
----
---- Returns:
----  * None
+--- Toggles the focused window to/from center screen.
+--- If the window has no temporary stored position when on the center screen,
+--- falls back to the saved per-app position (if any).
 function obj:focusMode()
     local win = hs.window.focusedWindow()
     if not win then
@@ -278,10 +129,23 @@ function obj:focusMode()
     local key = appName .. " - " .. title
 
     if isOnCenter then
-        self:restoreWindow(win, self.storedPositions[key])
-        self.storedPositions[key] = nil
+        local stored = self.storedPositions[key]
+        if stored then
+            self:applyPosition(win, stored)
+            self.storedPositions[key] = nil
+            hs.alert.show("Restored: " .. key)
+        else
+            -- Fallback to saved per-app position
+            local saved = self.appPositions[appName]
+            if saved then
+                self:applyPosition(win, saved)
+                hs.alert.show("Restored saved position: " .. appName)
+            else
+                hs.alert.show("No stored position")
+            end
+        end
     else
-        -- Store current position (BEFORE moveToScreen changes it)
+        -- Store current position before moving to center
         local currentScreen = win:screen()
         local currentFrame = win:frame()
         self:logWindowFrame("Storing original window", win)
@@ -293,7 +157,6 @@ function obj:focusMode()
             h = currentFrame.h
         }
 
-        -- Move to center and fit (using original frame dimensions)
         win:moveToScreen(centerScreen)
         self:logWindowFrame("Window after moveToScreen", win)
         self:fitAndCenterWindow(win, centerScreen, currentFrame)
@@ -301,42 +164,85 @@ function obj:focusMode()
     end
 end
 
---- FocusMode:toggleWindowSlot(slot)
+--- FocusMode:saveAppPosition()
 --- Method
---- Toggles a window from a slot to/from center screen
+--- Saves the focused window's current position, keyed by its application name.
+--- Overwrites any previous saved position for that app.
 ---
 --- Parameters:
----  * slot - The slot number (0-9) to toggle
+---  * None
 ---
 --- Returns:
 ---  * None
-function obj:toggleWindowSlot(slot)
-    local position = self.slots[slot]
-    if not position then
-        hs.alert.show("No window recorded in slot " .. slot)
+function obj:saveAppPosition()
+    local win = hs.window.focusedWindow()
+    if not win then
+        hs.alert.show("No focused window to save")
         return
     end
 
-    local targetWin = self:findWindow(position.appName, position.title)
-    if not targetWin then
-        hs.alert.show("No matching window found")
+    local appName = win:application():name()
+    local title = win:title()
+    local frame = win:frame()
+
+    self.appPositions[appName] = {
+        screenId = win:screen():id(),
+        x = frame.x,
+        y = frame.y,
+        w = frame.w,
+        h = frame.h,
+        title = title  -- stored for reference/debug only; not used for matching
+    }
+    hs.settings.set("FocusModeAppPositions", hs.json.encode(self.appPositions))
+    self.logger.d("Saved position for", appName, ":", hs.inspect(self.appPositions[appName]))
+    hs.alert.show("Saved position: " .. appName)
+end
+
+--- FocusMode:restoreAppPosition()
+--- Method
+--- Restores the focused window to the saved position for its application.
+--- Matches by application name (loose — ignores window title).
+---
+--- Parameters:
+---  * None
+---
+--- Returns:
+---  * None
+function obj:restoreAppPosition()
+    local win = hs.window.focusedWindow()
+    if not win then
+        hs.alert.show("No focused window")
         return
     end
 
-    local centerScreen = self:getCenterScreen()
-    local isOnCenter = targetWin:screen() == centerScreen
-    local appName = targetWin:application():name()
-    local title = targetWin:title()
+    local appName = win:application():name()
+    local saved = self.appPositions[appName]
+    if not saved then
+        hs.alert.show("No saved position for: " .. appName)
+        return
+    end
 
-    if isOnCenter then
-        self:restoreWindow(targetWin, self.slots[slot])
+    self:applyPosition(win, saved)
+    hs.alert.show("Restored: " .. appName)
+end
+
+--- FocusMode:forgetAppPosition()
+--- Method
+--- Removes the saved position for the focused window's application.
+function obj:forgetAppPosition()
+    local win = hs.window.focusedWindow()
+    if not win then
+        hs.alert.show("No focused window")
+        return
+    end
+
+    local appName = win:application():name()
+    if self.appPositions[appName] then
+        self.appPositions[appName] = nil
+        hs.settings.set("FocusModeAppPositions", hs.json.encode(self.appPositions))
+        hs.alert.show("Forgot position: " .. appName)
     else
-        -- Capture frame BEFORE moveToScreen changes it
-        local originalFrame = targetWin:frame()
-        targetWin:moveToScreen(centerScreen)
-        self:fitAndCenterWindow(targetWin, centerScreen, originalFrame)
-        targetWin:focus()
-        hs.alert.show("Moved to center (slot " .. slot .. "): " .. appName .. " - " .. title)
+        hs.alert.show("No saved position for: " .. appName)
     end
 end
 
@@ -347,8 +253,9 @@ end
 --- Parameters:
 ---  * mapping - A table containing hotkey modifier/key details for the following items:
 ---   * focusMode - Toggle focused window to/from center (e.g., {{}, "f13"})
----   * saveSlot - Enter save slot modal (e.g., {{"cmd", "alt"}, "f13"})
----   * toggleSlot - Enter toggle slot modal (e.g., {{"cmd"}, "f13"})
+---   * saveApp - Save focused window's position by app name (e.g., {{"cmd","shift"}, "f13"})
+---   * restoreApp - Restore focused window to saved app position (e.g., {{"cmd"}, "f13"})
+---   * forgetApp - (optional) Forget saved position for focused app
 ---
 --- Returns:
 ---  * The FocusMode object
@@ -360,48 +267,25 @@ function obj:bindHotkeys(mapping)
         end)
     end
 
-    if mapping["saveSlot"] then
-        local mod, key = table.unpack(mapping["saveSlot"])
-        local saveModal = hs.hotkey.modal.new(mod, key)
-
-        saveModal:bind({}, "escape", function()
-            saveModal:exit()
+    if mapping["saveApp"] then
+        local mod, key = table.unpack(mapping["saveApp"])
+        self.hotkeyRefs.saveApp = hs.hotkey.bind(mod, key, function()
+            self:saveAppPosition()
         end)
-
-        for i = 0, 9 do
-            saveModal:bind({}, tostring(i), function()
-                self:saveWindowSlot(i)
-                saveModal:exit()
-            end)
-        end
-
-        function saveModal:entered()
-            hs.alert.show("Press a number key (0-9) to save position...")
-        end
-
-        self.hotkeyRefs.saveSlot = saveModal
     end
 
-    if mapping["toggleSlot"] then
-        local mod, key = table.unpack(mapping["toggleSlot"])
-        local toggleModal = hs.hotkey.modal.new(mod, key)
-
-        toggleModal:bind({}, "escape", function()
-            toggleModal:exit()
+    if mapping["restoreApp"] then
+        local mod, key = table.unpack(mapping["restoreApp"])
+        self.hotkeyRefs.restoreApp = hs.hotkey.bind(mod, key, function()
+            self:restoreAppPosition()
         end)
+    end
 
-        for i = 0, 9 do
-            toggleModal:bind({}, tostring(i), function()
-                self:toggleWindowSlot(i)
-                toggleModal:exit()
-            end)
-        end
-
-        function toggleModal:entered()
-            hs.alert.show("Press a number key (0-9) to toggle position...")
-        end
-
-        self.hotkeyRefs.toggleSlot = toggleModal
+    if mapping["forgetApp"] then
+        local mod, key = table.unpack(mapping["forgetApp"])
+        self.hotkeyRefs.forgetApp = hs.hotkey.bind(mod, key, function()
+            self:forgetAppPosition()
+        end)
     end
 
     return self
@@ -410,12 +294,6 @@ end
 --- FocusMode:start()
 --- Method
 --- Starts the Spoon (currently no background tasks)
----
---- Parameters:
----  * None
----
---- Returns:
----  * The FocusMode object
 function obj:start()
     self.logger.i("FocusMode started")
     return self
@@ -424,12 +302,6 @@ end
 --- FocusMode:stop()
 --- Method
 --- Stops the Spoon and cleans up hotkeys
----
---- Parameters:
----  * None
----
---- Returns:
----  * The FocusMode object
 function obj:stop()
     for _, ref in pairs(self.hotkeyRefs) do
         if ref.delete then
