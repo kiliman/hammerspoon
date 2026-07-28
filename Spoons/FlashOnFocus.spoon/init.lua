@@ -1,6 +1,6 @@
 local spoon = {}
 spoon.name = "FlashOnFocus"
-spoon.version = "2.0"
+spoon.version = "2.1"
 spoon.author = "Ara (final perfection for my Michael 💚)"
 spoon.license = "MIT"
 
@@ -22,21 +22,19 @@ function spoon:init()
     self.currentFrame = nil
     self.currentWindow = nil
     self.isHolding = false -- true during the initial duration
+    self.currentAlpha = 0 -- tracks alpha during fade for move/resize redraws
+    self.lastFrame = nil -- last known window frame for polling comparison
     self.flashGeneration = 0
     self.holdTimer = nil
     self.fadeTimer = nil
     self.drawRetryTimer = nil
+    self.trackTimer = nil -- fast poll timer to track window movement
 
     self.watcher = hs.window.filter.new(nil):subscribe(hs.window.filter.windowFocused, function()
         self:flash()
     end):subscribe(hs.window.filter.windowDestroyed, function(w)
         if w == self.currentWindow then
             self:cleanupNow()
-        end
-    end):subscribe({hs.window.filter.windowMoved, hs.window.filter.windowResized}, function(w)
-        -- Only redraw if this is our current flashing window and we're still holding
-        if w == self.currentWindow and self.isHolding and self.currentFrame then
-            self:drawBorder()
         end
     end)
 end
@@ -62,6 +60,7 @@ function spoon:flashWindow(win)
 
     self.currentWindow = win
     self.isHolding = true
+    self.currentAlpha = self.frameColor.alpha
 
     self:drawBorder()
     if not self.currentFrame then
@@ -73,6 +72,9 @@ function spoon:flashWindow(win)
         end)
     end
 
+    -- Start polling for window movement/resize (~20fps)
+    self:startTracking(generation)
+
     -- End hold period: stop tracking moves and start fade
     self.holdTimer = timer.doAfter(self.duration, function()
         if generation ~= self.flashGeneration then
@@ -80,6 +82,35 @@ function spoon:flashWindow(win)
         end
         self.isHolding = false
         self:startFade(generation)
+    end)
+end
+
+-- Poll the window frame and redraw the border if it changed
+function spoon:startTracking(generation)
+    self.trackTimer = timer.doEvery(0.05, function()
+        if generation ~= self.flashGeneration then
+            if self.trackTimer then
+                self.trackTimer:stop()
+                self.trackTimer = nil
+            end
+            return
+        end
+
+        if not self.currentWindow or not self.currentFrame then
+            return
+        end
+
+        local f = self.currentWindow:frame()
+        if not f then
+            self:cleanupNow()
+            return
+        end
+
+        if self.lastFrame and
+            (f.x ~= self.lastFrame.x or f.y ~= self.lastFrame.y or
+             f.w ~= self.lastFrame.w or f.h ~= self.lastFrame.h) then
+            self:drawBorder()
+        end
     end)
 end
 
@@ -97,12 +128,21 @@ function spoon:drawBorder()
     end
 
     local frame = self.currentWindow:frame()
+    -- Store raw frame for tracking comparison
+    self.lastFrame = { x = frame.x, y = frame.y, w = frame.w, h = frame.h }
+
     frame.x = frame.x - 10
     frame.y = frame.y - 10
     frame.w = frame.w + 20
     frame.h = frame.h + 20
 
-    self.currentFrame = drawing.rectangle(frame):setStrokeWidth(self.frameWidth):setStrokeColor(self.frameColor)
+    local strokeColor = {
+        red = self.frameColor.red,
+        green = self.frameColor.green,
+        blue = self.frameColor.blue,
+        alpha = self.currentAlpha
+    }
+    self.currentFrame = drawing.rectangle(frame):setStrokeWidth(self.frameWidth):setStrokeColor(strokeColor)
         :setFill(false):setLevel(hs.drawing.windowLevels.popUpMenu):show()
 end
 
@@ -111,10 +151,9 @@ function spoon:startFade(generation)
         return
     end
 
-    local currentAlpha = self.frameColor.alpha
     local steps = 25
     local stepTime = self.fadeOutSeconds / steps
-    local stepAlpha = currentAlpha / steps
+    local stepAlpha = self.currentAlpha / steps
 
     self.fadeTimer = timer.doEvery(stepTime, function()
         if generation ~= self.flashGeneration then
@@ -133,17 +172,17 @@ function spoon:startFade(generation)
             return
         end
 
-        currentAlpha = currentAlpha - stepAlpha
-        if currentAlpha <= 0 then
+        self.currentAlpha = self.currentAlpha - stepAlpha
+        if self.currentAlpha <= 0 then
             self:cleanupNow()
             return
         end
 
         self.currentFrame:setStrokeColor({
-            red = 0,
-            green = 1,
-            blue = 0,
-            alpha = currentAlpha
+            red = self.frameColor.red,
+            green = self.frameColor.green,
+            blue = self.frameColor.blue,
+            alpha = self.currentAlpha
         })
     end)
 end
@@ -161,12 +200,17 @@ function spoon:cleanupNow()
         self.drawRetryTimer:stop()
         self.drawRetryTimer = nil
     end
+    if self.trackTimer then
+        self.trackTimer:stop()
+        self.trackTimer = nil
+    end
 
     if self.currentFrame then
         self.currentFrame:delete()
         self.currentFrame = nil
     end
     self.currentWindow = nil
+    self.lastFrame = nil
     self.isHolding = false
 end
 
