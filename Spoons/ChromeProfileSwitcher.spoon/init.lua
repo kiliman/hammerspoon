@@ -19,6 +19,17 @@ obj.logger = hs.logger.new('ChromeProfileSwitcher')
 obj.logger.setLogLevel('info')
 obj.profiles = {}
 
+-- Reports an app Hammerspoon cannot reach over accessibility, which otherwise
+-- looks identical to the app genuinely having no windows. Optional dependency,
+-- so the Spoon still works standalone.
+local function warnIfAccessibilityStale(app)
+    if spoon and spoon.AccessibilityHealth then
+        return spoon.AccessibilityHealth:warnIfStale(app)
+    end
+
+    return false
+end
+
 --- ChromeProfileSwitcher:init()
 --- Method
 --- Initializes the Spoon
@@ -123,6 +134,16 @@ function obj:switchToProfile(profileName, profileDir)
     self.logger.i(string.format("Found %d matching windows", #matchingWindows))
 
     if #matchingWindows == 0 then
+        -- Chrome is running, so an empty list can also mean Hammerspoon cannot
+        -- read Chrome's windows at all. Launching another window would not fix
+        -- that, and it hides the real problem behind a stray window.
+        for _, app in ipairs(chromeApps) do
+            if warnIfAccessibilityStale(app) then
+                self.logger.w("Chrome is unreachable over accessibility, not launching")
+                return
+            end
+        end
+
         self.logger.i("No matching windows found, launching with profile")
         self:launchChromeWithProfile(profileDir)
         return
