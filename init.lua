@@ -1,6 +1,17 @@
 -- enable CLI support
 require("hs.ipc")
 
+-- Load and configure AccessibilityHealth Spoon
+-- Loaded first: other Spoons use it to report an unreachable app instead of
+-- misreporting it as having no windows.
+hs.loadSpoon("AccessibilityHealth")
+
+spoon.AccessibilityHealth:init()
+spoon.AccessibilityHealth:bindHotkeys({
+    report = {{"cmd", "alt", "ctrl"}, "a"}
+})
+spoon.AccessibilityHealth:start()
+
 -- Load and configure FocusMode Spoon
 hs.loadSpoon("FocusMode")
 
