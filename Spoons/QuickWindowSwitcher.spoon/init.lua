@@ -23,6 +23,17 @@ obj.chooser = nil
 -- Hotkey references for cleanup
 obj.hotkeyRefs = {}
 
+-- Reports an app Hammerspoon cannot reach over accessibility, which otherwise
+-- looks identical to the app genuinely having no windows. Optional dependency,
+-- so the Spoon still works standalone.
+local function warnIfAccessibilityStale(app)
+    if spoon and spoon.AccessibilityHealth then
+        return spoon.AccessibilityHealth:warnIfStale(app)
+    end
+
+    return false
+end
+
 --- QuickWindowSwitcher:init()
 --- Method
 --- Initializes the Spoon
@@ -127,7 +138,11 @@ function obj:show()
     local choices = self:getWindowsForCurrentApp()
 
     if #choices == 0 then
-        hs.alert.show("No windows found for current application")
+        -- An unreachable app yields no windows and no focused window, so fall
+        -- back to frontmostApplication(), which does not depend on the AX API.
+        if not warnIfAccessibilityStale(hs.application.frontmostApplication()) then
+            hs.alert.show("No windows found for current application")
+        end
         return
     end
 
