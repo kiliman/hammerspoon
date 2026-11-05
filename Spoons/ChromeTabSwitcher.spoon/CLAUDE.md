@@ -1,16 +1,15 @@
 # ChromeTabSwitcher Spoon
 
 ## Overview
-Hammerspoon Spoon for quickly switching between Chrome tabs across all windows. Shows a searchable list of all open tabs with enhanced keyboard navigation and instant selection.
+Hammerspoon Spoon for quickly switching between Chrome tabs across all windows. Shows a searchable list of all open tabs, each labeled with its Chrome profile.
 
 ## Features
 
 - **All Tabs List** - Shows all Chrome tabs from all windows in one searchable list
-- **Number Key Selection** - Press 1-9 or 0 to instantly jump to a tab
 - **Arrow Key Navigation** - Use up/down arrows + Enter to select
 - **Click Support** - Click any tab in the list to focus it
-- **Search** - Type to filter tabs by title or URL
-- **Domain Display** - Shows the domain name as subtext for each tab
+- **Search** - Type to filter tabs by title, domain, or profile
+- **Profile + Domain Display** - Shows `Profile • domain` as subtext for each tab
 
 ## Installation
 
@@ -32,10 +31,9 @@ spoon.ChromeTabSwitcher:start()
 1. Press **Cmd+Ctrl+T** (or your configured hotkey)
 2. A list appears showing all Chrome tabs from all windows
 3. Select a tab using:
-   - **Number keys** (1-9, 0 for 10th tab) - Instant selection
    - **Arrow keys** (↑/↓) + **Enter** - Navigate and select
    - **Click** - Mouse selection
-   - **Type** - Search/filter by tab title or URL
+   - **Type** - Search/filter by tab title, domain, or profile
 4. **Escape** cancels the selection
 
 ### Examples
@@ -43,11 +41,11 @@ spoon.ChromeTabSwitcher:start()
 **Find a specific tab by name:**
 - Press **Cmd+Ctrl+T**
 - Type "github" to filter
-- Press **Enter** or a number key to select
+- Press **Enter** to select the first match
 
-**Jump to most recent tabs:**
+**Find a tab in one profile:**
 - Press **Cmd+Ctrl+T**
-- Press **1** to jump to the first tab (most recently focused)
+- Type "beehiiv" to narrow to tabs in the `Michael (beehiiv.com)` profile
 
 **Search by domain:**
 - Press **Cmd+Ctrl+T**
@@ -97,7 +95,8 @@ Uses AppleScript to fetch all tabs from all Chrome windows.
 **Returns:**
 - Table of choices formatted for `hs.chooser`, each containing:
   - `text` - Tab title
-  - `subText` - Domain extracted from URL
+  - `subText` - `Profile • domain`, or just the domain when the profile is unknown
+  - `profile` - Profile name taken from the window title
   - `url` - Full URL
   - `windowIndex` - Chrome window index
   - `tabIndex` - Tab index within window
@@ -119,12 +118,11 @@ Activates the selected tab in its window using AppleScript.
 
 | Key | Action |
 |-----|--------|
-| **1-9** | Select tab 1-9 instantly |
-| **0** | Select 10th tab instantly |
 | **↑/↓** | Navigate up/down |
 | **Enter** | Select highlighted tab |
+| **Cmd+1** – **Cmd+9** | Select a row directly (built into `hs.chooser`) |
 | **Escape** | Cancel and close list |
-| **Type** | Search/filter by title or URL |
+| **Type** | Search/filter by title, domain, or profile |
 | **Click** | Select tab by clicking |
 
 ## Configuration
@@ -141,7 +139,7 @@ spoon.ChromeTabSwitcher:bindHotkeys({
 
 ### Number of Visible Rows
 
-By default, the chooser shows up to 15 rows. To change this, modify the Spoon's `init()` method in `init.lua`:
+By default, the chooser shows up to 15 rows. To change this, modify the Spoon's `init()` method in `Spoons/ChromeTabSwitcher.spoon/init.lua`:
 
 ```lua
 self.chooser:rows(20)  -- Show 20 rows instead of 15
@@ -152,8 +150,8 @@ self.chooser:rows(20)  -- Show 20 rows instead of 15
 - Uses `hs.osascript.applescript()` to communicate with Chrome
 - Tab data is fetched fresh each time the chooser is shown
 - Tab activation is done via AppleScript commands to Chrome
-- Numbers are shown for first 10 tabs only
-- Search filters both title and URL (via subtext search)
+- Search covers the title and the subtext (profile and domain)
+- Profiles come from Hammerspoon window titles (`... - Google Chrome - <Profile>`), matched to AppleScript windows by position. Both list windows front-to-back, so the positions line up
 
 ## AppleScript Integration
 
@@ -190,10 +188,6 @@ end tell
 - Go to System Settings → Privacy & Security → Automation
 - Ensure Hammerspoon has permission to control Google Chrome
 
-### Number keys not working
-- Make sure you're pressing a single digit (1-9, 0)
-- The chooser should be focused (visible on screen)
-
 ### Hotkey conflict
 - Check for conflicts with other apps or Hammerspoon Spoons
 - Change the hotkey in `init.lua` if needed
@@ -207,7 +201,7 @@ end tell
 
 - Only works with Google Chrome (not Chromium, Brave, etc.)
 - Requires AppleScript automation permissions
-- Only shows first 10 tabs with number key support
+- Profile labels need a working accessibility connection; when it is stale, tabs still list but without profiles (see `Spoons/AccessibilityHealth.spoon/CLAUDE.md`)
 - Tab order may not match visual order in Chrome
 
 ## Future Enhancements
@@ -216,5 +210,4 @@ Potential improvements:
 - Support for other Chromium-based browsers
 - Show tab favicons
 - Group tabs by window
-- Show profile name for multi-profile setups
 - Integration with ChromeProfileSwitcher
