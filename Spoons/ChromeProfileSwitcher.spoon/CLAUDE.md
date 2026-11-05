@@ -13,6 +13,7 @@ This Spoon lets you assign a hotkey to each profile. Press the hotkey once to sw
 - **Direct profile targeting** - Jump straight to a specific profile
 - **Intelligent cycling** - Cycle through windows within the same profile
 - **Auto-launch** - Launch Chrome with the profile if no windows exist
+- **Accessibility-aware** - Warns instead of launching a stray window when Chrome is unreachable over accessibility
 - **Consistent ordering** - Windows are sorted by ID for predictable cycling
 
 ## Configuration
@@ -28,28 +29,33 @@ spoon.ChromeProfileSwitcher:init()
 spoon.ChromeProfileSwitcher:addProfile(
     "Michael (Kiliman)",  -- Profile name as shown in window title
     "Default",            -- Profile directory name
-    {{"cmd", "ctrl"}, "1"} -- Hotkey: Cmd+Ctrl+1
+    {{"cmd"}, "pad1"}     -- Hotkey: Cmd+Pad1
 )
 
 spoon.ChromeProfileSwitcher:addProfile(
-    "Work",
+    "Michael (beehiiv.com)",
     "Profile 1",
-    {{"cmd", "ctrl"}, "2"} -- Hotkey: Cmd+Ctrl+2
+    {{"cmd"}, "pad2"}     -- Hotkey: Cmd+Pad2
 )
 ```
 
+Load `AccessibilityHealth` before this Spoon to get the stale-accessibility guard. Without it, the Spoon still works but cannot tell an unreachable Chrome apart from a profile with no windows.
+
 ### Finding Your Profile Information
 
-**Profile Name:** Look at any Chrome window title - it ends with ` - ProfileName`
+**Profile Name:** Look at any Chrome window title. It ends with ` - Google Chrome - <Profile Name>`. A profile signed in to a Google account shows `<first name> (<profile name>)`, such as `Michael (Kiliman)`. A profile whose name matches the account name shows just the name, such as `Claudia`.
 
-**Profile Directory:**
+**Profile Directory:** Open `chrome://version` in that profile and read **Profile Path**. The directory is its last component, such as `Default` or `Profile 7`.
+
+macOS blocks both the shell and Hammerspoon from reading `~/Library/Application Support/Google/Chrome/`, so you cannot list profiles from disk. You can see which directories are loaded with `lsof -p "$(pgrep -x 'Google Chrome')" | grep -oE 'Chrome/(Default|Profile [0-9]+)/' | sort -u`, but that does not give you their names.
+
+**Verifying a mapping:** run the Spoon's launch command for a directory Chrome has already loaded, and read the profile name in the new window's title:
+
 ```bash
-# On macOS:
-ls ~/Library/Application\ Support/Google/Chrome/
-# Look for "Default" and "Profile 1", "Profile 2", etc.
+open -na 'Google Chrome' --args --profile-directory='Profile 7'
 ```
 
-Or check `chrome://version` in your browser - look for "Profile Path"
+Only do this for a directory that is already loaded. Chrome treats an unknown directory as a request to **create a new profile**.
 
 ## API
 
@@ -80,13 +86,17 @@ Programmatically switch to a specific profile.
 
 ### When you press the hotkey:
 
-1. **No Chrome windows exist** → Launch Chrome with that profile
-2. **Chrome is open, different profile is active** → Switch to first window of target profile
-3. **Target profile is already active** → Cycle to next window within that profile
+1. **Chrome is not running** → Launch Chrome with that profile
+2. **Chrome is running but unreachable over accessibility** → Alert naming the fix (quit and relaunch Hammerspoon), and **do not** launch anything
+3. **Chrome is running with no windows in that profile** → Launch a window for that profile
+4. **A different profile, or another app, is active** → Switch to first window of target profile
+5. **Target profile is already active** → Cycle to next window within that profile
+
+Case 2 exists because an unreachable Chrome reports zero windows, which used to fall through to case 3 and spawn a stray window instead of switching.
 
 ### Window Detection
 
-The Spoon matches windows by looking for ` - ProfileName` at the end of the window title. This is Chrome's standard format.
+The Spoon matches windows by their title suffix. Current Chrome titles look like `<tab title> - Google Chrome - <Profile Name>`. `titleMatchesProfile()` also accepts `... - <Profile Name> - Google Chrome` and a whitespace- and case-insensitive match on the last segment, to cope with older formats.
 
 ## Examples
 
@@ -112,14 +122,17 @@ spoon.ChromeProfileSwitcher:switchToProfile("Personal", "Default")
 
 ## Troubleshooting
 
+**Pressing the hotkey opens a new window instead of switching?**
+- Check the Hammerspoon console. If it says Chrome is unreachable over accessibility, quit and relaunch Hammerspoon (see `Spoons/AccessibilityHealth.spoon/CLAUDE.md`)
+- Otherwise the profile name does not match the window titles; see below
+
 **Windows not being detected?**
 - Check that your profile name exactly matches what appears in Chrome window titles
 - Profile names are case-sensitive
 - Make sure there are no extra spaces
 
 **Chrome not launching?**
-- Verify the profile directory name is correct
-- Check `~/Library/Application Support/Google/Chrome/` for available profiles
+- Verify the profile directory name with `chrome://version` (see Finding Your Profile Information)
 - Look at Hammerspoon console for error messages
 
 **Logging:**
