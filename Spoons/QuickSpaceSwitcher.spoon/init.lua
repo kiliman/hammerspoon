@@ -1,7 +1,7 @@
 --- === QuickSpaceSwitcher ===
 ---
 --- Searchable chooser + direct hotkeys for Spaces (multi-display aware)
---- Uses screen under mouse pointer
+--- Uses the screen holding the focused window (hs.screen.mainScreen())
 ---
 --- License: MIT
 local obj = {}
@@ -34,7 +34,8 @@ function obj:init()
     return self
 end
 
--- Get the screen under the mouse (or fallback)
+-- Get the screen holding the focused window. The mouse-screen lookup is kept
+-- commented out in case it is wanted back.
 function obj:currentMouseScreen()
     -- local screen = hs.mouse.getCurrentScreen()
     local screen = hs.screen.mainScreen()
