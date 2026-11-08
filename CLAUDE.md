@@ -97,6 +97,13 @@ Searchable list of Spaces, plus direct jumps, on the screen holding the focused 
 - `Ctrl+Pad0` - Show the Spaces chooser
 - `Ctrl+Pad1` – `Ctrl+Pad4` - Jump to Space 1–4
 
+### AudioPriority
+Gives the default **input** device a priority list, which macOS lacks: Yeti X, then the CalDigit TS4 dock, then the MacBook Pro microphone, then BlackHole. Devices on no list (Cam Link 4K) are never picked automatically. No hotkey.
+
+- Acts only when a device connects or disconnects (`hs.audiodevice.watcher` event `dev#`), after a 1.5s settle so a dock's devices can all appear. It ignores the default changing, so a manual switch sticks until the next plug/unplug.
+- Recording an emulator through BlackHole (see the `driving-test-devices` skill): switch to BlackHole by hand, then put it back with `hs -c 'spoon.AudioPriority:apply()'`.
+- Edit the order with `spoon.AudioPriority.inputPriority` (plain substrings of device names, best first). It owns the global `hs.audiodevice.watcher` callback, so no other Spoon can set one.
+
 ### Container
 Experimental and **not loaded**: uses a full-screen TextEdit window as a parent container for other windows.
 

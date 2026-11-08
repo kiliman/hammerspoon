@@ -78,3 +78,8 @@ QuickSpaceSwitcher:bindHotkeys({
 })
 
 hs.alert.show("Hammerspoon config loaded!")
+
+-- Default input follows a priority list on plug/unplug: Yeti -> CalDigit -> built-in -> BlackHole.
+-- After recording through BlackHole: hs -c 'spoon.AudioPriority:apply()'
+hs.loadSpoon("AudioPriority")
+spoon.AudioPriority:start()
