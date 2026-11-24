@@ -158,3 +158,11 @@ spoon.ChromeProfileSwitcher:addProfile("Michael (Kiliman)", "Default", {{"cmd", 
 ```
 
 That's it! The Lua version is cleaner, faster, and easier to maintain.
+
+## Focus race when Chrome isn't frontmost (fixed 2026-11-24)
+
+`hs.window:focus()` calls `becomeMain()` and then activates the app. When Chrome is not the frontmost app, the activation completes *after* `becomeMain()`, and Chrome brings its own last key window forward, undoing the choice. The symptom: the first press lands on the most recently used profile, and a second press (Chrome now frontmost) works.
+
+`focusAndVerify` focuses, checks `hs.window.focusedWindow()` every `focusCheckInterval` (0.1s), and focuses again up to `focusRetries` (4) times, then flashes the window. Each attempt logs `Post-focus check N: target=… focused=…`.
+
+**Keep every `hs.timer` referenced** (`self.focusTimer`, or a global in a test). An unreferenced `hs.timer.doAfter` can be garbage-collected before it fires. The old post-focus check was lost this way, which hid the race from the log. Test with stubs (no real window moves): `tmp/test_focus_retry.lua`, run with `hs -c 'return dofile(...)'`, then read `_G.focusRetryResult` a few seconds later.

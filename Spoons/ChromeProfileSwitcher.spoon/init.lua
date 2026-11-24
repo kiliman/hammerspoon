@@ -198,31 +198,78 @@ function obj:switchToProfile(profileName, profileDir)
         targetWindow = matchingWindows[1]
     end
 
-    -- Focus the target window
     if targetWindow then
         self.logger.i(string.format("Focusing window: %s", targetWindow:title()))
-        local targetId = targetWindow:id() or -1
-        targetWindow:raise()
-        targetWindow:focus()
-
-        -- Some scripted focus transitions don't always emit windowFocused reliably.
-        -- Trigger FlashOnFocus explicitly for the resulting focused window.
-        hs.timer.doAfter(0.08, function()
-            local focused = hs.window.focusedWindow()
-            local focusedId = focused and focused:id() or -1
-            self.logger.i(string.format("Post-focus check target=%d focused=%d", targetId, focusedId))
-
-            if spoon and spoon.FlashOnFocus then
-                if spoon.FlashOnFocus.flashWindow and focused and focused:id() == targetId then
-                    spoon.FlashOnFocus:flashWindow(focused)
-                    self.logger.i("Triggered FlashOnFocus:flashWindow")
-                elseif spoon.FlashOnFocus.flash then
-                    spoon.FlashOnFocus:flash()
-                    self.logger.i("Triggered FlashOnFocus:flash fallback")
-                end
-            end
-        end)
+        self:focusAndVerify(targetWindow)
     end
+end
+
+-- How often focusAndVerify checks that the target window kept focus, and how
+-- many times it re-focuses before giving up.
+obj.focusCheckInterval = 0.1
+obj.focusRetries = 4
+
+--- ChromeProfileSwitcher:focusAndVerify(targetWindow)
+--- Method
+--- Focuses a window and re-focuses it until it actually holds focus
+---
+--- Parameters:
+---  * targetWindow - The hs.window to focus
+---
+--- Returns:
+---  * None
+---
+--- Notes:
+---  * hs.window:focus() makes the window main, then activates Chrome. When Chrome
+---    is not the frontmost app, that activation completes afterwards and brings
+---    Chrome's own last key window forward, undoing the choice (the first press
+---    landed on the most recent profile). So check, and focus again if needed.
+---  * The timer is kept on the object: an unreferenced hs.timer can be garbage
+---    collected before it fires, which is why the old post-focus check sometimes
+---    never ran.
+function obj:focusAndVerify(targetWindow)
+    local targetId = targetWindow:id() or -1
+    local attempts = 0
+
+    if self.focusTimer then
+        self.focusTimer:stop()
+    end
+
+    targetWindow:raise()
+    targetWindow:focus()
+
+    local function check()
+        local focused = hs.window.focusedWindow()
+        local focusedId = focused and focused:id() or -1
+        self.logger.i(string.format("Post-focus check %d: target=%d focused=%d", attempts, targetId, focusedId))
+
+        if focusedId ~= targetId and attempts < self.focusRetries then
+            attempts = attempts + 1
+            self.logger.i("Chrome took focus back, focusing the target again")
+            targetWindow:raise()
+            targetWindow:focus()
+            self.focusTimer = hs.timer.doAfter(self.focusCheckInterval, check)
+            return
+        end
+
+        self.focusTimer = nil
+        if focusedId ~= targetId then
+            self.logger.w(string.format("Target window %d never held focus", targetId))
+        end
+
+        -- Scripted focus changes don't always emit windowFocused, so flash explicitly.
+        if spoon and spoon.FlashOnFocus then
+            if spoon.FlashOnFocus.flashWindow and focusedId == targetId then
+                spoon.FlashOnFocus:flashWindow(focused)
+                self.logger.i("Triggered FlashOnFocus:flashWindow")
+            elseif spoon.FlashOnFocus.flash then
+                spoon.FlashOnFocus:flash()
+                self.logger.i("Triggered FlashOnFocus:flash fallback")
+            end
+        end
+    end
+
+    self.focusTimer = hs.timer.doAfter(self.focusCheckInterval, check)
 end
 
 --- ChromeProfileSwitcher:titleMatchesProfile(title, profileName)

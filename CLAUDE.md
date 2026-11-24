@@ -16,7 +16,7 @@ Custom Hammerspoon setup for multi-monitor window management.
 | `Cmd+Shift+F13` | FocusMode | Save focused window's position for its app |
 | `Cmd+F13` | FocusMode | Restore focused window to its app's saved position |
 | `Cmd+Alt+Down` | QuickWindowSwitcher | Search the current app's windows |
-| `Cmd+Pad1` – `Cmd+Pad4` | ChromeProfileSwitcher | Switch to / cycle a Chrome profile's windows |
+| `Cmd+Pad1` – `Cmd+Pad5` | ChromeProfileSwitcher | Switch to / cycle a Chrome profile's windows |
 | `Cmd+Ctrl+T` | ChromeTabSwitcher | Search all Chrome tabs across windows |
 | `Ctrl+Pad0` | QuickSpaceSwitcher | Search Spaces on the current screen |
 | `Ctrl+Pad1` – `Ctrl+Pad4` | QuickSpaceSwitcher | Jump straight to Space 1–4 |
@@ -66,10 +66,12 @@ One hotkey per Chrome profile, with cycling within a profile.
 | `Cmd+Pad2` | `Michael (beehiiv.com)` | `Profile 1` |
 | `Cmd+Pad3` | `Claudia` | `Profile 7` |
 | `Cmd+Pad4` | `Michael (Michael 3VOtech)` | `Profile 8` |
+| `Cmd+Pad5` | `Charles` (Michael's dad) | `Profile 15` |
 
-Mapping verified 2026-11-05 by launching each directory and reading the profile name Chrome put in the window title. There is at least one more profile, `Claudia (Claudia 3votech.com)`, which is not bound.
+Mapping verified 2026-11-05 by launching each directory and reading the profile name Chrome put in the window title. `Charles` was added 2026-11-24 from `chrome://profile-internals`. There is at least one more profile, `Claudia (Claudia 3votech.com)`, which is not bound.
 
 - Press once to switch to the profile, again to cycle its windows
+- One press is enough even when Chrome isn't frontmost: the Spoon re-focuses the target if Chrome's activation brings its last-used window forward instead
 - Launches the profile only when it truly has no windows, never when Chrome is unreachable over accessibility
 
 ### ChromeTabSwitcher
