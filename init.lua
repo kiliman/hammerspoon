@@ -40,6 +40,7 @@ spoon.ChromeProfileSwitcher:addProfile("Michael (Kiliman)", "Default", {{"cmd"},
 spoon.ChromeProfileSwitcher:addProfile("Michael (beehiiv.com)", "Profile 1", {{"cmd"}, "pad2"})
 spoon.ChromeProfileSwitcher:addProfile("Claudia", "Profile 7", {{"cmd"}, "pad3"})
 spoon.ChromeProfileSwitcher:addProfile("Michael (Michael 3VOtech)", "Profile 8", {{"cmd"}, "pad4"})
+spoon.ChromeProfileSwitcher:addProfile("Charles", "Profile 15", {{"cmd"}, "pad5"})
 
 -- Load and configure ChromeTabSwitcher Spoon
 hs.loadSpoon("ChromeTabSwitcher")
